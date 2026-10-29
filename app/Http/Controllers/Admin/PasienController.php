@@ -3,71 +3,89 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Pasien;
-use Illuminate\Http\RedirectResponse;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Illuminate\View\View;
+use Illuminate\Support\Facades\Hash;
 
 class PasienController extends Controller
 {
-    public function index(): View
+    public function index()
     {
-        return view('admin.pasien.index', [
-            'pasiens' => Pasien::query()->orderBy('nama_pasien')->paginate(10),
-        ]);
+        $pasiens = User::where('role', 'pasien')->with('poli')->get();
+        return view('admin.pasien.index', compact('pasiens'));
     }
 
-    public function create(): View
+    public function create()
     {
         return view('admin.pasien.create');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
-        $validated = $request->validate([
-            'no_rm' => ['required', 'string', 'max:255', 'unique:pasien,no_rm'],
-            'nama_pasien' => ['required', 'string', 'max:255'],
-            'alamat' => ['nullable', 'string'],
-            'no_hp' => ['nullable', 'string', 'max:20'],
-            'tanggal_lahir' => ['nullable', 'date', 'before_or_equal:today'],
-            'jenis_kelamin' => ['nullable', Rule::in(['L', 'P'])],
+        $request->validate([
+            'nama' => 'required|string|max:255',
+            'alamat' => 'required|string',
+            'no_ktp' => 'required|string|max:16|unique:users,no_ktp',
+            'no_hp' => 'required|string|max:15',
+            'email' => 'required|string|email|unique:users,email',
+            'password' => 'required|string|min:6',
         ]);
 
-        Pasien::create($validated);
+        User::create([
+            'nama' => $request->nama,
+            'alamat' => $request->alamat,
+            'no_ktp' => $request->no_ktp,
+            'no_hp' => $request->no_hp,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'role' => 'pasien',
+        ]);
 
-        return redirect()->route('admin.pasien.index')->with('success', 'Data pasien berhasil ditambahkan.');
+        return redirect()->route('pasien.index')->with('message', 'Data Pasien berhasil di Tambah>')->with('type', 'success');
     }
 
-    public function edit(Pasien $pasien): View
+    public function edit(User $pasien)
     {
         return view('admin.pasien.edit', compact('pasien'));
     }
 
-    public function update(Request $request, Pasien $pasien): RedirectResponse
+    public function update(Request $request, User $pasien)
     {
-        $validated = $request->validate([
-            'no_rm' => ['required', 'string', 'max:255', Rule::unique('pasien', 'no_rm')->ignore($pasien)],
-            'nama_pasien' => ['required', 'string', 'max:255'],
-            'alamat' => ['nullable', 'string'],
-            'no_hp' => ['nullable', 'string', 'max:20'],
-            'tanggal_lahir' => ['nullable', 'date', 'before_or_equal:today'],
-            'jenis_kelamin' => ['nullable', Rule::in(['L', 'P'])],
+        $request->validate([
+            'nama' => 'required|string|max:255',
+            'alamat' => 'required|string',
+            'no_ktp' => 'required|string|max:16|unique:users,no_ktp,' . $pasien->id,
+            'no_hp' => 'required|string|max:15',
+            'email' => 'required|string|email|unique:users,email,' . $pasien->id,
+            'password' => 'required|string|min:6',
         ]);
 
-        $pasien->update($validated);
+        $updateData = [
+            'nama' => $request->nama,
+            'alamat' => $request->alamat,
+            'no_ktp' => $request->no_ktp,
+            'no_hp' => $request->no_hp,
+            'email' => $request->email,
+        ];
 
-        return redirect()->route('admin.pasien.index')->with('success', 'Data pasien berhasil diperbarui.');
-    }
-
-    public function destroy(Pasien $pasien): RedirectResponse
-    {
-        if ($pasien->daftarPolis()->exists()) {
-            return back()->with('error', 'Pasien tidak dapat dihapus karena masih memiliki pendaftaran poli.');
+        if ($request->filled('password')) {
+            $pasien->password = Hash::make($request->password);
         }
 
-        $pasien->delete();
+        $pasien->update($updateData);
 
-        return redirect()->route('admin.pasien.index')->with('success', 'Data pasien berhasil dihapus.');
+        return redirect()
+            ->route('pasien.index')
+            ->with('message', 'Data Pasien berhasil di Ubah>')
+            ->with('type', 'success');
+    }
+
+    public function destroy(User $pasien)
+    {
+        $pasien->delete();
+        return redirect()
+            ->route('pasien.index')
+            ->with('message', 'Data Pasien berhasil dihapus')
+            ->with('type', 'success');
     }
 }

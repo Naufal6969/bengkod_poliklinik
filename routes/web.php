@@ -1,43 +1,46 @@
 <?php
 
-use App\Http\Controllers\Admin\DokterController;
-use App\Http\Controllers\Admin\JadwalPeriksaController;
-use App\Http\Controllers\Admin\ObatController;
-use App\Http\Controllers\Admin\PasienController;
-use App\Http\Controllers\Admin\PoliController;
-use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Admin\AdminPoliController;
+use App\Http\Controllers\Admin\DokterController;
+use App\Http\Controllers\Admin\PasienController;
+use App\Http\Controllers\Admin\ObatController;
+use App\Http\Controllers\Dokter\JadwalPeriksaController;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])
-    ->middleware('throttle:5,1')
-    ->name('login.store');
-Route::get('/register', [AuthController::class, 'showRegistrationForm'])->name('register');
-Route::post('/register', [AuthController::class, 'register'])->name('register.store');
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login']);
+Route::get('/register', [AuthController::class, 'showRegister']);
+Route::post('/register', [AuthController::class, 'register'])->name('register');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-Route::middleware('auth')->group(function (): void {
-    Route::get('/dashboard', [AuthController::class, 'dashboard'])->name('dashboard');
-    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
+    Route::get('/dashboard', function () {
+        return view('admin.dashboard');
+    })->name('admin.dashboard');
 
-    Route::view('/admin/dashboard', 'admin.dashboard')
-        ->middleware('role:admin')
-        ->name('admin.dashboard');
-    Route::view('/dokter/dashboard', 'dokter.dashboard')
-        ->middleware('role:dokter')
-        ->name('dokter.dashboard');
-    Route::view('/pasien/dashboard', 'pasien.dashboard')
-        ->middleware('role:pasien')
-        ->name('pasien.dashboard');
+    Route::resource('polis', AdminPoliController::class);
+    Route::resource('dokter', DokterController::class);
+    Route::resource('pasien', PasienController::class);
+    Route::resource('obat', ObatController::class)->except('show');
+});
 
-    Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function (): void {
-        Route::resource('poli', PoliController::class)->except('show');
-        Route::resource('dokter', DokterController::class)->except('show');
-        Route::resource('pasien', PasienController::class)->except('show');
-        Route::resource('obat', ObatController::class)->except('show');
-        Route::resource('jadwal-periksa', JadwalPeriksaController::class)->except('show');
-    });
+Route::middleware(['auth', 'role:dokter'])->prefix('dokter')->group(function () {
+    Route::get('/dashboard', function () {
+        return view('dokter.dashboard');
+    })->name('dokter.dashboard');
+
+    Route::resource('jadwal-periksa', JadwalPeriksaController::class)
+        ->except('show')
+        ->parameters(['jadwal-periksa' => 'jadwal']);
+});
+
+Route::middleware(['auth', 'role:pasien'])->prefix('pasien')->group(function () {
+    Route::get('/dashboard', function () {
+        return view('pasien.dashboard');
+    })->name('pasien.dashboard');
 });

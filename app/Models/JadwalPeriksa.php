@@ -3,28 +3,25 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class JadwalPeriksa extends Model
 {
     protected $table = 'jadwal_periksa';
 
     protected $fillable = [
-        'dokter_id',
+        'id_dokter',
         'hari',
         'jam_mulai',
         'jam_selesai',
-        'tarif_periksa',
     ];
 
-    public function dokter(): BelongsTo
+    public function dokter()
     {
-        return $this->belongsTo(Dokter::class, 'dokter_id');
+        return $this->belongsTo(User::class, 'id_dokter');
     }
 
-    public function daftarPolis(): HasMany
+    public function daftarPolis()
     {
-        return $this->hasMany(DaftarPoli::class, 'jadwal_periksa_id');
+        return $this->hasMany(DaftarPoli::class, 'id_jadwal');
     }
 }

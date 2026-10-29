@@ -3,132 +3,97 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Dokter;
 use App\Models\Poli;
 use App\Models\User;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
-use Illuminate\View\View;
 
 class DokterController extends Controller
 {
-    public function index(): View
+    public function index()
     {
-        return view('admin.dokter.index', [
-            'dokters' => Dokter::query()
-                ->with(['poli', 'user'])
-                ->orderBy('nama_dokter')
-                ->paginate(10),
-        ]);
+        $dokters = User::where('role', 'dokter')->with('poli')->get();
+        return view('admin.dokter.index', compact('dokters'));
     }
 
-    public function create(): View
+    public function create()
     {
-        return view('admin.dokter.create', [
-            'polis' => Poli::query()->orderBy('nama_poli')->get(),
-        ]);
+        $polis = Poli::all();
+        return view('admin.dokter.create', compact('polis'));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
-        $validated = $request->validate([
-            'poli_id' => ['required', 'integer', 'exists:poli,id'],
-            'nama_dokter' => ['required', 'string', 'max:255'],
-            'alamat' => ['nullable', 'string'],
-            'no_hp' => ['nullable', 'string', 'max:20'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        $data = $request->validate([
+            'nama' => 'required|string|max:255',
+            'alamat' => 'required|string',
+            'no_ktp' => 'required|string|max:16|unique:users,no_ktp',
+            'no_hp' => 'required|string|max:15',
+            'id_poli' => 'required|string|exists:poli,id',
+            'email' => 'required|string|unique:users,email',
+            'password' => 'required|string|min:6',
         ]);
 
-        DB::transaction(function () use ($validated): void {
-            $user = User::create([
-                'name' => $validated['nama_dokter'],
-                'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
-                'role' => 'dokter',
-                'id_poli' => $validated['poli_id'],
-            ]);
-
-            $user->dokter()->create([
-                'poli_id' => $validated['poli_id'],
-                'nama_dokter' => $validated['nama_dokter'],
-                'alamat' => $validated['alamat'] ?? null,
-                'no_hp' => $validated['no_hp'] ?? null,
-            ]);
-        });
-
-        return redirect()->route('admin.dokter.index')->with('success', 'Data dokter dan akun login berhasil ditambahkan.');
-    }
-
-    public function edit(Dokter $dokter): View
-    {
-        $dokter->load('user');
-
-        return view('admin.dokter.edit', [
-            'dokter' => $dokter,
-            'polis' => Poli::query()->orderBy('nama_poli')->get(),
-        ]);
-    }
-
-    public function update(Request $request, Dokter $dokter): RedirectResponse
-    {
-        $validated = $request->validate([
-            'poli_id' => ['required', 'integer', 'exists:poli,id'],
-            'nama_dokter' => ['required', 'string', 'max:255'],
-            'alamat' => ['nullable', 'string'],
-            'no_hp' => ['nullable', 'string', 'max:20'],
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($dokter->user_id)],
-            'password' => [$dokter->user_id === null ? 'required' : 'nullable', 'string', 'min:8', 'confirmed'],
+        User::create([
+            'nama' => $request->nama,
+            'alamat' => $request->alamat,
+            'no_ktp' => $request->no_ktp,
+            'no_hp' => $request->no_hp,
+            'id_poli' => $request->id_poli,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'role' => 'dokter',
         ]);
 
-        DB::transaction(function () use ($dokter, $validated): void {
-            $user = $dokter->user;
-
-            if ($user === null) {
-                $user = User::create([
-                    'name' => $validated['nama_dokter'],
-                    'email' => $validated['email'],
-                    'password' => Hash::make($validated['password']),
-                    'role' => 'dokter',
-                    'id_poli' => $validated['poli_id'],
-                ]);
-            } else {
-                $user->update([
-                    'name' => $validated['nama_dokter'],
-                    'email' => $validated['email'],
-                    'role' => 'dokter',
-                    'id_poli' => $validated['poli_id'],
-                    ...(! empty($validated['password']) ? ['password' => Hash::make($validated['password'])] : []),
-                ]);
-            }
-
-            $dokter->update([
-                'user_id' => $user->id,
-                'poli_id' => $validated['poli_id'],
-                'nama_dokter' => $validated['nama_dokter'],
-                'alamat' => $validated['alamat'] ?? null,
-                'no_hp' => $validated['no_hp'] ?? null,
-            ]);
-        });
-
-        return redirect()->route('admin.dokter.index')->with('success', 'Data dokter berhasil diperbarui.');
+        return redirect()->route('dokter.index')
+            ->with('message', 'Data Dokter Berhasil di tambahkan')
+            ->with('type', 'success');
     }
 
-    public function destroy(Dokter $dokter): RedirectResponse
+    public function edit(User $dokter)
     {
-        if ($dokter->jadwalPeriksas()->exists()) {
-            return back()->with('error', 'Dokter tidak dapat dihapus karena masih memiliki jadwal periksa.');
+        $polis = Poli::all();
+        return view('admin.dokter.edit', compact('dokter', 'polis'));
+    }
+
+    public function update(Request $request, User $dokter)
+    {
+        $request->validate([
+            'nama' => 'required|string|max:255',
+            'alamat' => 'required|string',
+            'no_ktp' => 'required|string|max:16|unique:users,no_ktp,' . $dokter->id,
+            'no_hp' => 'required|string|max:15',
+            'id_poli' => 'required|string|exists:poli,id',
+            'email' => 'required|string|unique:users,email,' . $dokter->id,
+            'password' => 'nullable|string|min:6',
+        ]);
+
+        $updateData = [
+            'nama' => $request->nama,
+            'alamat' => $request->alamat,
+            'no_ktp' => $request->no_ktp,
+            'no_hp' => $request->no_hp,
+            'id_poli' => $request->id_poli,
+            'email' => $request->email,
+        ];
+
+        if ($request->filled('password')) {
+            $dokter->password = Hash::make($request->password);
         }
 
-        DB::transaction(function () use ($dokter): void {
-            $user = $dokter->user;
-            $dokter->delete();
-            $user?->delete();
-        });
+        $dokter->update($updateData);
 
-        return redirect()->route('admin.dokter.index')->with('success', 'Data dokter dan akun login berhasil dihapus.');
+        return redirect()->route('dokter.index')
+            ->with('message', 'Data Dokter Berhasil di ubah')
+            ->with('type', 'success');
+    }
+
+    public function destroy(User $dokter)
+    {
+        $dokter->delete();
+
+        return redirect()->route('dokter.index')
+            ->with('message', 'Data Dokter Berhasil dihapus')
+            ->with('type', 'success');
     }
 }

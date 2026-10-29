@@ -3,34 +3,30 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class DaftarPoli extends Model
 {
     protected $table = 'daftar_poli';
 
     protected $fillable = [
-        'pasien_id',
-        'jadwal_periksa_id',
-        'tanggal_daftar',
-        'no_antrian',
+        'id_pasien',
+        'id_jadwal',
         'keluhan',
-        'status',
+        'no_antrian'
     ];
 
-    public function pasien(): BelongsTo
+    public function pasien()
     {
-        return $this->belongsTo(Pasien::class, 'pasien_id');
+        return $this->belongsTo(User::class, 'id_pasien');
     }
 
-    public function jadwalPeriksa(): BelongsTo
+    public function jadwalPeriksa()
     {
-        return $this->belongsTo(JadwalPeriksa::class, 'jadwal_periksa_id');
+        return $this->belongsTo(JadwalPeriksa::class, 'id_jadwal');
     }
 
-    public function periksa(): HasOne
+    public function periksas()
     {
-        return $this->hasOne(Periksa::class, 'daftar_poli_id');
+        return $this->hasMany(Periksa::class, 'id_daftar_poli');
     }
 }

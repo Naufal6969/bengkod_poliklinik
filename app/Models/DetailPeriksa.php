@@ -3,35 +3,23 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DetailPeriksa extends Model
 {
     protected $table = 'detail_periksa';
 
     protected $fillable = [
-        'periksa_id',
-        'obat_id',
-        'dosis',
-        'jumlah',
-        'subtotal',
+        'id_periksa',
+        'id_obat'
     ];
 
-    protected function casts(): array
+    public function periksa()
     {
-        return [
-            'jumlah' => 'integer',
-            'subtotal' => 'decimal:2',
-        ];
+        return $this->belongsTo(Periksa::class, 'id_periksa');
     }
 
-    public function periksa(): BelongsTo
+    public function obat()
     {
-        return $this->belongsTo(Periksa::class, 'periksa_id');
-    }
-
-    public function obat(): BelongsTo
-    {
-        return $this->belongsTo(Obat::class, 'obat_id');
+        return $this->belongsTo(Obat::class, 'id_obat');
     }
 }
